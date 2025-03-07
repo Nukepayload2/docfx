@@ -236,7 +236,8 @@ partial class SymbolFormatter
                 {
                     if (Language is SyntaxLanguage.VB)
                     {
-                        AddSpace();
+                        AddLineBreak();
+                        AddIndent();
                         AddKeyword("Inherits");
                         AddSpace();
                         AddTypeName(type.BaseType);
@@ -257,11 +258,17 @@ partial class SymbolFormatter
             if (baseTypes.Count <= 0)
                 return;
 
-            AddSpace();
             if (Language is SyntaxLanguage.VB)
+            {
+                AddLineBreak();
+                AddIndent();
                 AddKeyword(type.TypeKind is TypeKind.Interface ? "Inherits" : "Implements");
+            }
             else
+            {
+                AddSpace();
                 AddPunctuation(":");
+            }
             AddSpace();
 
             foreach (var baseType in baseTypes)
@@ -419,6 +426,11 @@ partial class SymbolFormatter
             _parts.Add(new(SymbolDisplayPartKind.Space, null, " "));
         }
 
+        private void AddIndent()
+        {
+            _parts.Add(new(SymbolDisplayPartKind.Space, null, "    "));
+        }
+
         private void AddLineBreak()
         {
             _parts.Add(new(SymbolDisplayPartKind.LineBreak, null, "\r\n"));
@@ -519,12 +531,145 @@ partial class SymbolFormatter
             try
             {
                 return Language is SyntaxLanguage.VB
-                    ? VB.SymbolDisplay.ToDisplayParts(symbol, format)
+                    ? FixVbSymbolDisplayParts(VB.SymbolDisplay.ToDisplayParts(symbol, format), symbol, format)
                     : CS.SymbolDisplay.ToDisplayParts(symbol, format);
             }
             catch
             {
                 return [];
+            }
+
+            static ImmutableArray<SymbolDisplayPart> FixVbSymbolDisplayParts(
+                ImmutableArray<SymbolDisplayPart> symbolDisplayParts, ISymbol ownerSymbol, SymbolDisplayFormat format)
+            {
+                // `symbolDisplayParts` is incorrect result when:
+                // A parameter type is `ByRef`: `ByRef` was removed. We need to add it back.
+                // A parameter type is `Optional`: `Optional` was removed. We need to add it back.
+                // A property is indexer: The property name is incorrect. We need to replace `this[]` with the real property name by getting the IndexerNameAttribute of parent type.
+
+                if (ownerSymbol is IMethodSymbol || ownerSymbol is INamedTypeSymbol { TypeKind: TypeKind.Delegate })
+                {
+                    var parameterOptions = format.ParameterOptions;
+                    if (!parameterOptions.HasFlag(SymbolDisplayParameterOptions.IncludeName))
+                    {
+                        // We don't know where to insert keywords if parameter names don't need to be displayed.
+                        return symbolDisplayParts;
+                    }
+
+                    var fixedSymbols = symbolDisplayParts;
+
+                    // Workaround https://github.com/dotnet/roslyn/issues/77458
+                    if (parameterOptions.HasFlag(SymbolDisplayParameterOptions.IncludeDefaultValue) &&
+                        !parameterOptions.HasFlag(SymbolDisplayParameterOptions.IncludeOptionalBrackets))
+                    {
+                        fixedSymbols = FixVbOptionalKeywords(fixedSymbols);
+                    }
+
+                    // Workaround https://github.com/dotnet/roslyn/issues/14683
+                    if (parameterOptions.HasFlag(SymbolDisplayParameterOptions.IncludeModifiers))
+                    {
+                        fixedSymbols = FixVbByRefKeywords(fixedSymbols);
+                    }
+
+                    return fixedSymbols;
+                }
+
+                if (ownerSymbol is IPropertySymbol prop)
+                {
+                    // Workaround https://github.com/dotnet/roslyn/issues/14684
+                    if (!prop.IsIndexer)
+                    {
+                        // Not affected
+                        return symbolDisplayParts;
+                    }
+
+                    return FixVbDefaultPropertyName(symbolDisplayParts);
+                }
+
+                return symbolDisplayParts;
+
+            }
+
+            static ImmutableArray<SymbolDisplayPart> FixVbDefaultPropertyName(ImmutableArray<SymbolDisplayPart> symbolDisplayParts)
+            {
+                var result = ImmutableArray.CreateBuilder<SymbolDisplayPart>();
+
+                for (int i = 0; i < symbolDisplayParts.Length; i++)
+                {
+                    var part = symbolDisplayParts[i];
+                    if (part.Kind == SymbolDisplayPartKind.PropertyName && part.Symbol is ISymbol symbol)
+                    {
+                        result.Add(new SymbolDisplayPart(SymbolDisplayPartKind.PropertyName, symbol, symbol.MetadataName));
+                        continue;
+                    }
+
+                    result.Add(part);
+                }
+
+                return result.ToImmutable();
+            }
+
+
+            static ImmutableArray<SymbolDisplayPart> InsertKeywordBeforeParameterName(
+                ImmutableArray<SymbolDisplayPart> symbolDisplayParts,
+                Predicate<IParameterSymbol> needsToInsert, string keyword)
+            {
+                bool shouldHaveByRef = symbolDisplayParts.Any(
+                    part =>
+                    part.Kind == SymbolDisplayPartKind.ParameterName &&
+                    part.Symbol is IParameterSymbol parameter &&
+                    needsToInsert(parameter));
+
+                if (!shouldHaveByRef)
+                {
+                    // Not affected
+                    return symbolDisplayParts;
+                }
+
+                bool hasByRefKeyword = symbolDisplayParts.Any(
+                    part =>
+                    part.Kind == SymbolDisplayPartKind.Keyword && part.ToString() == keyword);
+
+                if (hasByRefKeyword)
+                {
+                    // Not affected
+                    return symbolDisplayParts;
+                }
+
+                var result = ImmutableArray.CreateBuilder<SymbolDisplayPart>();
+
+                // Fix parameter types
+                for (int i = 0; i < symbolDisplayParts.Length; i++)
+                {
+                    var part = symbolDisplayParts[i];
+                    if (part.Kind == SymbolDisplayPartKind.ParameterName &&
+                        part.Symbol is IParameterSymbol parameter &&
+                        needsToInsert(parameter))
+                    {
+                        // Add ByRef
+                        result.Add(new SymbolDisplayPart(SymbolDisplayPartKind.Keyword, null, keyword));
+                        result.Add(new SymbolDisplayPart(SymbolDisplayPartKind.Space, null, " "));
+                    }
+
+                    // Add the original part
+                    result.Add(part);
+                }
+
+                return result.ToImmutable();
+            }
+
+            static ImmutableArray<SymbolDisplayPart> FixVbByRefKeywords(ImmutableArray<SymbolDisplayPart> symbolDisplayParts)
+            {
+                return InsertKeywordBeforeParameterName(symbolDisplayParts,
+                    parameter => parameter.RefKind != RefKind.None,
+                    "ByRef");
+            }
+
+            static ImmutableArray<SymbolDisplayPart> FixVbOptionalKeywords(ImmutableArray<SymbolDisplayPart> symbolDisplayParts)
+            {
+                return InsertKeywordBeforeParameterName(symbolDisplayParts,
+                    parameter => parameter.IsOptional,
+                    "Optional");
             }
         }
     }
