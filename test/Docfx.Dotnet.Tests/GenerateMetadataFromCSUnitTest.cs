@@ -680,6 +680,7 @@ namespace Test1
             Assert.Equal("Test1.FooBar", type.DisplayQualifiedNames[SyntaxLanguage.CSharp]);
             Assert.Equal("Test1.FooBar", type.Name);
             Assert.Equal("public delegate void FooBar(ref int x, out string y, in bool z, params byte[] w)", type.Syntax.Content[SyntaxLanguage.CSharp]);
+            Assert.Equal("Public Delegate Sub FooBar(ByRef x As Integer, ByRef y As String, ByRef z As Boolean, ParamArray w As Byte())", type.Syntax.Content[SyntaxLanguage.VB]);
 
             Assert.NotNull(type.Syntax.Parameters);
             Assert.Equal(4, type.Syntax.Parameters.Count);
@@ -798,6 +799,7 @@ namespace Test1
             Assert.Equal("Test1.Foo<T>.M5(ref int, out string, in bool)", method.DisplayQualifiedNames[SyntaxLanguage.CSharp]);
             Assert.Equal("Test1.Foo`1.M5(System.Int32@,System.String@,System.Boolean@)", method.Name);
             Assert.Equal("public void M5(ref int x, out string y, in bool z)", method.Syntax.Content[SyntaxLanguage.CSharp]);
+            Assert.Equal("Public Sub M5(ByRef x As Integer, ByRef y As String, ByRef z As Boolean)", method.Syntax.Content[SyntaxLanguage.VB]);
         }
         {
             var method = output.Items[0].Items[0].Items[5];
@@ -1947,6 +1949,11 @@ namespace Test1
         int this[string x] { get; }
         int this[object x] { set; }
     }
+    public interface ICharSequence
+    {
+        [System.Runtime.CompilerServices.IndexerName(""Chars"")]
+        char this[int index] { get; }
+    }
 }
 ";
         MetadataItem output = Verify(code);
@@ -2066,6 +2073,13 @@ namespace Test1
             Assert.Equal("Test1.IFooBar.this[object]", indexer.DisplayQualifiedNames[SyntaxLanguage.CSharp]);
             Assert.Equal("Test1.IFooBar.Item(System.Object)", indexer.Name);
             Assert.Equal("int this[object x] { set; }", indexer.Syntax.Content[SyntaxLanguage.CSharp]);
+            Assert.Equal("WriteOnly Default Property Item(x As Object) As Integer", indexer.Syntax.Content[SyntaxLanguage.VB]);
+        }
+        // ICharSequence
+        {
+            var indexer = output.Items[0].Items[3].Items[0];
+            Assert.NotNull(indexer);
+            Assert.Equal("ReadOnly Default Property Chars(index As Integer) As Char", indexer.Syntax.Content[SyntaxLanguage.VB]);
         }
     }
 
@@ -2095,6 +2109,7 @@ namespace Test1
             var method = output.Items[0].Items[0].Items[0];
             Assert.NotNull(method);
             Assert.Equal(@"public void Test(int a = 1, uint b = 1, short c = 1, ushort d = 1, long e = 1, ulong f = 1, byte g = 1, sbyte h = 1, char i = '1', string j = ""1"", bool k = true, object l = null)", method.Syntax.Content[SyntaxLanguage.CSharp]);
+            Assert.Equal(@"Public Sub Test(Optional a As Integer = 1, Optional b As UInteger = 1, Optional c As Short = 1, Optional d As UShort = 1, Optional e As Long = 1, Optional f As ULong = 1, Optional g As Byte = 1, Optional h As SByte = 1, Optional i As Char = ""1""c, Optional j As String = ""1"", Optional k As Boolean = True, Optional l As Object = Nothing)", method.Syntax.Content[SyntaxLanguage.VB]);
         }
     }
 
@@ -2336,7 +2351,7 @@ namespace Test1
             Assert.Equal("Test1.Foo.Item(System.Object)", method.Name);
             Assert.Equal("public dynamic this[dynamic index] { get; }", method.Syntax.Content[SyntaxLanguage.CSharp]);
             // TODO: https://github.com/dotnet/roslyn/issues/14684
-            Assert.Equal("Public ReadOnly Default Property this[](index As Object) As Object", method.Syntax.Content[SyntaxLanguage.VB]);
+            Assert.Equal("Public ReadOnly Default Property Item(index As Object) As Object", method.Syntax.Content[SyntaxLanguage.VB]);
         }
     }
 
