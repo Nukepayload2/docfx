@@ -2114,6 +2114,30 @@ namespace Test1
     }
 
     [Fact]
+    public void TestGenerateMetadataWithMethodOverridesFinalize()
+    {
+        string code = @"
+namespace Test1
+{
+    public class Foo
+    {
+        ~Foo()
+        {
+        }
+    }
+}
+";
+        MetadataItem output = Verify(code);
+        Assert.Single(output.Items);
+        {
+            var method = output.Items[0].Items[0].Items[0];
+            Assert.NotNull(method);
+            Assert.Equal(@"protected ~Foo()", method.Syntax.Content[SyntaxLanguage.CSharp]);
+            Assert.Equal(@"Protected Overrides Sub Finalize()", method.Syntax.Content[SyntaxLanguage.VB]);
+        }
+    }
+
+    [Fact]
     public void TestGenerateMetadataAsyncWithAssemblyInfoAndCrossReference()
     {
         string referenceCode = @"

@@ -530,6 +530,11 @@ partial class SymbolFormatter
         {
             try
             {
+                if (Language == SyntaxLanguage.VB &&
+                    symbol is IMethodSymbol { MethodKind: MethodKind.Destructor } method)
+                {
+                    return GetVBFinalizeDisplayParts(format, method);
+                }
                 return Language is SyntaxLanguage.VB
                     ? FixVbSymbolDisplayParts(VB.SymbolDisplay.ToDisplayParts(symbol, format), symbol, format)
                     : CS.SymbolDisplay.ToDisplayParts(symbol, format);
@@ -537,6 +542,24 @@ partial class SymbolFormatter
             catch
             {
                 return [];
+            }
+
+            static ImmutableArray<SymbolDisplayPart> GetVBFinalizeDisplayParts(SymbolDisplayFormat format, IMethodSymbol method)
+            {
+                // https://github.com/dotnet/roslyn/issues/77459
+                // We have to manually write `Overrides Sub Finalize()` for VB.NET destructors.
+                var result = ImmutableArray.CreateBuilder<SymbolDisplayPart>();
+                if (format.KindOptions.HasFlag(SymbolDisplayKindOptions.IncludeTypeKeyword))
+                {
+                    result.Add(new(SymbolDisplayPartKind.Keyword, null, "Overrides"));
+                    result.Add(new(SymbolDisplayPartKind.Space, null, " "));
+                    result.Add(new(SymbolDisplayPartKind.Keyword, null, "Sub"));
+                    result.Add(new(SymbolDisplayPartKind.Space, null, " "));
+                }
+                result.Add(new(SymbolDisplayPartKind.MethodName, method, "Finalize"));
+                result.Add(new(SymbolDisplayPartKind.Punctuation, null, "("));
+                result.Add(new(SymbolDisplayPartKind.Punctuation, null, ")"));
+                return result.ToImmutable();
             }
 
             static ImmutableArray<SymbolDisplayPart> FixVbSymbolDisplayParts(
@@ -672,5 +695,6 @@ partial class SymbolFormatter
                     "Optional");
             }
         }
+
     }
 }
