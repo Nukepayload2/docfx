@@ -53,7 +53,9 @@ End Namespace
             Assert.Equal("Class2(Of T)", type.DisplayNames[SyntaxLanguage.VB]);
             Assert.Equal("Test1.Class2(Of T)", type.DisplayQualifiedNames[SyntaxLanguage.VB]);
             Assert.Equal("Test1.Class2`1", type.Name);
-            Assert.Equal("Public Class Class2(Of T) Inherits List(Of T) Implements IList(Of T), ICollection(Of T), IReadOnlyList(Of T), IReadOnlyCollection(Of T), IEnumerable(Of T), IList, ICollection, IEnumerable", type.Syntax.Content[SyntaxLanguage.VB]);
+            Assert.Equal(@"Public Class Class2(Of T)
+    Inherits List(Of T)
+    Implements IList(Of T), ICollection(Of T), IReadOnlyList(Of T), IReadOnlyCollection(Of T), IEnumerable(Of T), IList, ICollection, IEnumerable", type.Syntax.Content[SyntaxLanguage.VB]);
         }
         {
             var type = output.Items[0].Items[2];
@@ -153,7 +155,8 @@ End Namespace
             Assert.Equal("IC(Of TItem)", type.DisplayNames[SyntaxLanguage.VB]);
             Assert.Equal("Test1.IC(Of TItem)", type.DisplayQualifiedNames[SyntaxLanguage.VB]);
             Assert.Equal("Test1.IC`1", type.Name);
-            Assert.Equal("Public Interface IC(Of TItem As {IA, New}) Inherits IA, IB(Of TItem())", type.Syntax.Content[SyntaxLanguage.VB]);
+            Assert.Equal(@"Public Interface IC(Of TItem As {IA, New})
+    Inherits IA, IB(Of TItem())", type.Syntax.Content[SyntaxLanguage.VB]);
         }
     }
 
@@ -200,7 +203,8 @@ End Namespace
             Assert.Equal("S3(Of T1, T2)", type.DisplayNames[SyntaxLanguage.VB]);
             Assert.Equal("Test1.S3(Of T1, T2)", type.DisplayQualifiedNames[SyntaxLanguage.VB]);
             Assert.Equal("Test1.S3`2", type.Name);
-            Assert.Equal("Public Structure S3(Of T1 As {Class, IA, New}, T2 As IB(Of T1)) Implements IA, IB(Of T1())", type.Syntax.Content[SyntaxLanguage.VB]);
+            Assert.Equal(@"Public Structure S3(Of T1 As {Class, IA, New}, T2 As IB(Of T1))
+    Implements IA, IB(Of T1())", type.Syntax.Content[SyntaxLanguage.VB]);
         }
     }
 
@@ -249,7 +253,8 @@ Namespace Test1
         Assert.Equal("Foo.SubFoo", subFoo.DisplayNames[SyntaxLanguage.VB]);
         Assert.Equal("Foo.SubFoo", subFoo.DisplayNamesWithType[SyntaxLanguage.VB]);
         Assert.Equal("Test1.Foo.SubFoo", subFoo.DisplayQualifiedNames[SyntaxLanguage.VB]);
-        Assert.Equal("Public Class Foo.SubFoo Implements Foo.IFoo", subFoo.Syntax.Content[SyntaxLanguage.VB]);
+        Assert.Equal(@"Public Class Foo.SubFoo
+    Implements Foo.IFoo", subFoo.Syntax.Content[SyntaxLanguage.VB]);
         Assert.NotNull(subFoo.Implements);
         Assert.Equal("Test1.Foo.IFoo", subFoo.Implements[0]);
     }
@@ -1023,6 +1028,9 @@ Namespace Test1
         ReadOnly Property B As Integer
         WriteOnly Property C As Integer
     End Interface
+    Public Interface ICharSequence
+        Default ReadOnly Property Chars(index As Integer) As Char
+    End Interface
 End Namespace
 ";
         MetadataItem output = Verify(code);
@@ -1125,6 +1133,15 @@ End Namespace
             Assert.Equal("Test1.IFooBar.C", c.DisplayQualifiedNames[SyntaxLanguage.VB]);
             Assert.Equal("Test1.IFooBar.C", c.Name);
             Assert.Equal("WriteOnly Property C As Integer", c.Syntax.Content[SyntaxLanguage.VB]);
+        }
+        // ICharSequence
+        {
+            var chars = output.Items[0].Items[3].Items[0];
+            Assert.NotNull(chars);
+            Assert.Equal("Chars(Integer)", chars.DisplayNames[SyntaxLanguage.VB]);
+            Assert.Equal("Test1.ICharSequence.Chars(Integer)", chars.DisplayQualifiedNames[SyntaxLanguage.VB]);
+            Assert.Equal("Test1.ICharSequence.Chars(System.Int32)", chars.Name);
+            Assert.Equal("ReadOnly Default Property Chars(index As Integer) As Char", chars.Syntax.Content[SyntaxLanguage.VB]);
         }
     }
 
@@ -1374,7 +1391,8 @@ End Namespace
 <Test(New Integer() { 1, 2, 3 })>
 <Test(New Object() { Nothing, ""abc"", ""d""c, 1.1, 1.2, 2, 3, 4, 5, 6, 8, 9, New Integer() { 10, 11, 12 } })>
 <Test(New Type() { GetType(Func(Of )), GetType(Func(Of ,)), GetType(Func(Of String, String)) })>
-Public Class TestAttribute Inherits Attribute", type.Syntax.Content[SyntaxLanguage.VB]);
+Public Class TestAttribute
+    Inherits Attribute", type.Syntax.Content[SyntaxLanguage.VB]);
         var ctor = type.Items[0];
         Assert.NotNull(type);
         Assert.Equal(@"<Test(1)>
