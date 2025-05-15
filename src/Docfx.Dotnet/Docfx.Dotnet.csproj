@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <EmbeddedResource Include="Resources\**" />
   </ItemGroup>
@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="docfx" />
+    <InternalsVisibleTo Include="docfx2vb" />
     <InternalsVisibleTo Include="docfx.Tests" />
     <InternalsVisibleTo Include="Docfx.App" />
     <InternalsVisibleTo Include="Docfx.Dotnet.Tests" />

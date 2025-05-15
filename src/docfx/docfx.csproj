@@ -1,10 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <PackAsTool>true</PackAsTool>
     <RollForward>Major</RollForward>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Description>The docfx command line tool published as .NET tool</Description>
+    <Description>The VB-compatible docfx2 command line tool published as .NET tool</Description>
+    <PackageId>Nukepayload2.Tools.Docfx2VB</PackageId>
+    <Version>2.78.2</Version>
+    <AssemblyName>docfx2vb</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -51,5 +54,10 @@
 
   <ItemGroup>
     <PackageReference Include="Spectre.Console.Cli" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\docfx-v2-vb-templates\default-vb-declaration\**\*" Pack="True" PackagePath="templates/default-vb-declaration"/>
+    <None Include="..\..\..\docfx-v2-vb-templates\modern-vb-declaration\**\*" Pack="True" PackagePath="templates/modern-vb-declaration"/>
   </ItemGroup>
 </Project>
